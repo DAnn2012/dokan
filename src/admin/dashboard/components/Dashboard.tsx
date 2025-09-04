@@ -5,6 +5,7 @@ import ModulePage from '../pages/modules';
 import { useMutationObserver } from '../../../hooks';
 import SetupGuide from '../pages/setup-guide';
 import WithdrawPage from '../pages/withdraw';
+import ReverseWithdrawalPage from '../pages/reverse-withdrawal';
 import NotFound from '../../../layout/404';
 
 export type DokanAdminRoute = {
@@ -31,6 +32,11 @@ const getAdminRoutes = () => {
             element: <WithdrawPage />,
             path: '/withdraw',
         },
+        {
+            id: 'reverse-withdrawal',
+            element: <ReverseWithdrawalPage />,
+            path: '/reverse-withdrawal',
+        }
     ];
 
     // @ts-ignore

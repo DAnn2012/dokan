@@ -314,7 +314,7 @@ class Dashboard implements Hookable {
             wp_register_style(
                 $this->script_key,
                 DOKAN_PLUGIN_ASSEST . '/css/dokan-admin-dashboard.css',
-                [ 'dokan-react-components' ],
+                [ 'dokan-react-components', 'wc-components' ],
                 $version
             );
 

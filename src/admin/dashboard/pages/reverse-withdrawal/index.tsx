@@ -38,9 +38,8 @@ const ReverseWithdrawalPage = () => {
         page: 1,
         search: '',
         type: 'table',
-        titleField: 'store_name',
         layout: { density: 'comfortable' },
-        fields: ['store_name', 'balance', 'last_payment_date'],
+        fields: ['store_name', 'balance', 'last_payment_date'], // Explicitly define which fields to show
     });
 
     // Columns
@@ -289,11 +288,13 @@ const ReverseWithdrawalPage = () => {
             />
 
             {/* Add Reverse Withdrawal Modal */}
-            <AddReverseWithdrawModal
-                open={showAddModal}
-                onClose={() => setShowAddModal(false)}
-                onSave={handleModalSave}
-            />
+            {showAddModal && (
+                <AddReverseWithdrawModal
+                    open={showAddModal}
+                    onClose={() => setShowAddModal(false)}
+                    onSave={handleModalSave}
+                />
+            )}
         </div>
     );
 };

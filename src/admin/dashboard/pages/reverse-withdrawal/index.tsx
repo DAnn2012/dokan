@@ -71,12 +71,19 @@ const ReverseWithdrawalPage = () => {
             id: 'last_payment_date',
             label: __('Date', 'dokan-lite'),
             enableSorting: true,
-            render: ({ item }) =>
-                item.last_payment_date ? (
-                    <DateTimeHtml.Date date={item.last_payment_date} />
-                ) : (
-                    '--'
-                ),
+            render: ({ item }) => {
+                if (!item.last_payment_date || isNaN(new Date(item.last_payment_date).getTime())) {
+                    return '--';
+                }
+
+                const formattedDate = new Intl.DateTimeFormat('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                }).format(new Date(item.last_payment_date));
+
+                return <span>{formattedDate.replace(/\//g, '.')}</span>;
+            },
         },
     ];
 
@@ -185,7 +192,7 @@ const ReverseWithdrawalPage = () => {
     );
 
     return (
-        <div className="p-6 bg-white rounded-md shadow-sm">
+        <div className="p-6 bg-gray rounded-md shadow-sm">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">

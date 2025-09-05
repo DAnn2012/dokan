@@ -121,6 +121,7 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
         <div className="space-y-6 p-4 overflow-y-auto max-h-[700px]"> {/* Adjusted height for 818px total */}
             <div>
                 <VendorAsyncSelect
+                    prefetch
                     value={vendorsData}
                     onChange={handleVendorChange}
                     isClearable
@@ -164,6 +165,8 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
                         placeholder={__('Search', 'dokan-lite')}
                         isClearable
                         defaultOptions={false}
+                        prefetch
+                        endpoint='dokan/v1/products'
                         isDisabled={!vendorsData}
                         extraQuery={{
                             ...(vendorsData?.value ? { id: vendorsData.value } : {}),
@@ -189,11 +192,12 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
                         onChange={setSelectedOrder}
                         placeholder={__('Search order', 'dokan-lite')}
                         isClearable
+                        prefetch
+                        endpoint='dokan/v1/orders'
                         defaultOptions={false}
                         isDisabled={!vendorsData}
                         extraQuery={{
                             ...(vendorsData?.value && { seller_id: vendorsData.value }),
-                            status: ['completed', 'processing', 'on-hold'],
                         }}
                         mapOption={(order) => ({
                             value: order.id,
@@ -280,7 +284,7 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
             onClose={handleClose}
             onConfirm={handleConfirm}
             namespace="add-reverse-withdrawal"
-            className="max-w-[620px] w-full max-h-[818px] !important:max-w-[620px] !important:max-h-[818px]" // Forced resize with !important
+            className="dokan-layout max-w-[620px] w-full max-h-[818px]" // Forced resize with !important
             dialogTitle={__('Add New Reverse Withdrawal', 'dokan-lite')}
             dialogContent={modalContent}
             confirmButtonText={__('Add New', 'dokan-lite')}

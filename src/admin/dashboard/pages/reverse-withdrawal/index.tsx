@@ -14,6 +14,8 @@ import { Funnel } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 // Import the modal component
 import AddReverseWithdrawModal from './AddReverseWithdrawModal';
+import { House } from 'lucide-react';
+import { VendorAsyncSelect } from '@src/components';
 
 const price = (amount) => <RawHTML>{formatPrice(amount)}</RawHTML>;
 
@@ -149,45 +151,63 @@ const ReverseWithdrawalPage = () => {
         }
     };
 
-    // Filters
-    const StoreFilter = ({ filterArgs, setFilterArgs }) => (
-        <TextControl
-            label={__('Store', 'dokan-lite')}
-            placeholder={__('Search by store name', 'dokan-lite')}
-            value={filterArgs.store || ''}
-            onChange={(value) => setFilterArgs({ ...filterArgs, store: value })}
-            className="min-w-48"
-        />
-    );
+    const StoreFilter = ({ filterArgs, setFilterArgs, errors = {} }) => {
+        const handleVendorChange = (selected) => {
+            setFilterArgs({
+                ...filterArgs,
+                vendor_id: selected ? selected.value : '', // store vendor_id instead of generic store
+            });
+        };
 
+        return (
+            <div className="flex flex-col min-w-48">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {__('Store', 'dokan-lite')}
+                </label>
+
+                <div className="relative">
+                    <House className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+
+                    <VendorAsyncSelect
+                        prefetch
+                        isClearable
+                        onChange={handleVendorChange}
+                        placeholder={__('All Store', 'dokan-lite')}
+                        menuPortalTarget={document.body}
+                        styles={{
+                            control: (provided) => ({
+                                ...provided,
+                                paddingLeft: '1.5rem',
+                            }),
+                            menuPortal: (base) => ({
+                                ...base,
+                                zIndex: 9999,
+                            }),
+                        }}
+                    />
+                </div>
+
+                {errors.vendorId && (
+                    <span className="text-red-500 text-sm">
+                        {__('Please select a vendor', 'dokan-lite')}
+                    </span>
+                )}
+            </div>
+        );
+    };
     const DateFilter = ({ filterArgs, setFilterArgs }) => (
-        <div className="flex space-x-2">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {__('From Date', 'dokan-lite')}
-                </label>
-                <input
-                    type="date"
-                    value={filterArgs.date_from || ''}
-                    onChange={(e) =>
-                        setFilterArgs({ ...filterArgs, date_from: e.target.value })
-                    }
-                    className="border border-gray-300 rounded-md px-3 py-2"
-                />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {__('To Date', 'dokan-lite')}
-                </label>
-                <input
-                    type="date"
-                    value={filterArgs.date_to || ''}
-                    onChange={(e) =>
-                        setFilterArgs({ ...filterArgs, date_to: e.target.value })
-                    }
-                    className="border border-gray-300 rounded-md px-3 py-2"
-                />
-            </div>
+        <div className="flex flex-col min-w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+                {__('Date', 'dokan-lite')}
+            </label>
+            <input
+                type="date"
+                value={filterArgs.date || ''}
+                onChange={(e) =>
+                    setFilterArgs({ ...filterArgs, date: e.target.value })
+                }
+                className="border border-gray-300 rounded-md px-3 py-2"
+            />
         </div>
     );
 
@@ -268,12 +288,8 @@ const ReverseWithdrawalPage = () => {
                         />,
                     ]}
                     onFilter={fetchData}
-                    onReset={() => {
-                        setFilterArgs({});
-                        fetchData();
-                    }}
-                    showFilter={true}
-                    showReset={true}
+                    showFilter={false}   // ⬅️ hide Filter button
+                    showReset={false}    // ⬅️ hide Reset button
                     namespace="reverse_withdrawal_filters"
                 />
             </div>

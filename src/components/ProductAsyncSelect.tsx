@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { addQueryArgs } from '@wordpress/url';
 import AsyncSelect, { type BaseSelectProps } from './AsyncSelect';
+import { __, sprintf } from '@wordpress/i18n';
 
 export interface ProductOption {
     value: number;
@@ -23,13 +24,16 @@ export interface ProductAsyncSelectProps
 
 const defaultMap = ( product: any ): ProductOption => ( {
     value: product.id,
-    label: product.name || `Product #${ product?.id }`,
+    label:
+        product.name ||
+        // eslint-disable-next-line @wordpress/i18n-translator-comments
+        sprintf( __( 'Product #%s', 'dokan' ), String( product?.id ?? '' ) ),
     raw: product,
 } );
 
 function ProductAsyncSelect( props: ProductAsyncSelectProps ) {
     const {
-        endpoint = '/dokan/v2/products',
+        endpoint = '/dokan/v1/products',
         perPage = 20,
         mapOption = defaultMap,
         extraQuery = {},
@@ -98,6 +102,7 @@ function ProductAsyncSelect( props: ProductAsyncSelectProps ) {
         perPage: number;
         buildQuery?: ProductAsyncSelectProps[ 'buildQuery' ];
         extraQueryKey: string;
+        userLoadOptions?: ProductAsyncSelectProps[ 'loadOptions' ];
     } >();
 
     // When a refetch happens due to dependency change, skip merging newly searched
@@ -113,7 +118,8 @@ function ProductAsyncSelect( props: ProductAsyncSelectProps ) {
             ( prev.endpoint !== endpoint ||
                 prev.perPage !== perPage ||
                 prev.buildQuery !== buildQuery ||
-                prev.extraQueryKey !== extraQueryKey );
+                prev.extraQueryKey !== extraQueryKey ||
+                prev.userLoadOptions !== userLoadOptions );
 
         const shouldFetch = ( prefetch && ! prev ) || depsChanged;
         if ( depsChanged ) {
@@ -128,6 +134,7 @@ function ProductAsyncSelect( props: ProductAsyncSelectProps ) {
                     perPage,
                     buildQuery,
                     extraQueryKey,
+                    userLoadOptions,
                 };
             }
             return;
@@ -178,6 +185,7 @@ function ProductAsyncSelect( props: ProductAsyncSelectProps ) {
                 perPage,
                 buildQuery,
                 extraQueryKey,
+                userLoadOptions,
             };
         } )();
 
@@ -191,6 +199,7 @@ function ProductAsyncSelect( props: ProductAsyncSelectProps ) {
         extraQuery,
         prefetch,
         strictPrefetchValidation,
+        userLoadOptions,
     ] );
 
     const defaultOptionsProp: any =

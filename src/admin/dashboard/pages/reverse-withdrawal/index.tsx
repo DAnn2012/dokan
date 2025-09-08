@@ -1,26 +1,61 @@
 import { addQueryArgs } from '@wordpress/url';
 import { __ } from '@wordpress/i18n';
-import { RawHTML, useEffect, useState, useCallback } from '@wordpress/element';
-import { TextControl } from '@wordpress/components';
+import { RawHTML, useEffect, useState, useCallback, useMemo, memo } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { formatPrice } from '@dokan/utilities';
-import {
-    DokanButton,
-    DataViews,
-    DateTimeHtml,
-    Filter,
-} from '@dokan/components';
-import { Funnel } from 'lucide-react';
+import { DokanButton, DataViews, Filter } from '@dokan/components';
+import { Funnel, House, Calendar } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-// Import the modal component
 import AddReverseWithdrawModal from './AddReverseWithdrawModal';
-import { House, Calendar } from 'lucide-react';
 import { VendorAsyncSelect } from '@src/components';
-// Import DateRangePicker
 import DateRangePicker from '@src/components/DateRangePicker';
 import moment from 'moment';
 
 const price = (amount) => <RawHTML>{formatPrice(amount)}</RawHTML>;
+
+// Move StoreFilter outside and memoize it
+const StoreFilter = memo(({ filterArgs, setFilterArgs, errors = {} }) => {
+    const handleVendorChange = useCallback((selected) => {
+        setFilterArgs(prev => ({
+            ...prev,
+            vendor_id: selected ? selected.value : '',
+            vendor_name: selected ? selected.label : '',
+        }));
+    }, [setFilterArgs]);
+
+    // Memoize the vendor value to prevent unnecessary re-renders
+    const vendorValue = useMemo(() => {
+        return filterArgs.vendor_id 
+            ? { value: filterArgs.vendor_id, label: filterArgs.vendor_name || '' } 
+            : null;
+    }, [filterArgs.vendor_id, filterArgs.vendor_name]);
+
+    // Memoize the styles object
+    const selectStyles = useMemo(() => ({
+        control: (provided) => ({ ...provided, paddingLeft: '1.5rem' }),
+        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+    }), []);
+
+    return (
+        <div className="flex flex-col min-w-48">
+            <div className="relative">
+                <House className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                <VendorAsyncSelect
+                    prefetch={true}
+                    isClearable
+                    value={vendorValue}
+                    onChange={handleVendorChange}
+                    placeholder={__('All Store', 'dokan-lite')}
+                    menuPortalTarget={document.body}
+                    styles={selectStyles}
+                />
+            </div>
+            {errors.vendorId && <span className="text-red-500 text-sm">{__('Please select a vendor', 'dokan-lite')}</span>}
+        </div>
+    );
+});
+
+StoreFilter.displayName = 'StoreFilter';
 
 const ReverseWithdrawalPage = () => {
     const [stats, setStats] = useState({
@@ -35,10 +70,8 @@ const ReverseWithdrawalPage = () => {
     const [totalItems, setTotalItems] = useState(0);
     const [filterArgs, setFilterArgs] = useState({});
     const [showFilters, setShowFilters] = useState(false);
-    // Add state for modal
     const [showAddModal, setShowAddModal] = useState(false);
 
-    // Date range picker state
     const [dateAfter, setDateAfter] = useState('');
     const [dateAfterText, setDateAfterText] = useState('');
     const [dateBefore, setDateBefore] = useState('');
@@ -51,11 +84,11 @@ const ReverseWithdrawalPage = () => {
         search: '',
         type: 'table',
         layout: { density: 'comfortable' },
-        fields: ['store_name', 'balance', 'last_payment_date'], // Explicitly define which fields to show
+        fields: ['store_name', 'balance', 'last_payment_date'],
     });
 
-    // Columns
-    const fields = [
+    // Memoize fields to prevent unnecessary re-renders
+    const fields = useMemo(() => [
         {
             id: 'store_name',
             label: __('Store', 'dokan-lite'),
@@ -75,9 +108,7 @@ const ReverseWithdrawalPage = () => {
             id: 'balance',
             label: __('Amount', 'dokan-lite'),
             enableSorting: true,
-            render: ({ item }) => (
-                <span className="font-semibold text-gray-900">{price(item.balance)}</span>
-            ),
+            render: ({ item }) => <span className="font-semibold text-gray-900">{price(item.balance)}</span>,
         },
         {
             id: 'last_payment_date',
@@ -87,20 +118,19 @@ const ReverseWithdrawalPage = () => {
                 if (!item.last_payment_date || isNaN(new Date(item.last_payment_date).getTime())) {
                     return '--';
                 }
-
                 const formattedDate = new Intl.DateTimeFormat('en-GB', {
                     day: '2-digit',
                     month: '2-digit',
                     year: '2-digit',
                 }).format(new Date(item.last_payment_date));
-
                 return <span>{formattedDate.replace(/\//g, '.')}</span>;
             },
         },
-    ];
+    ], []);
 
-    // Fetch data
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (afterParam = dateAfter, beforeParam = dateBefore) => {
+        setData([]);
+        setTotalItems(0);
         setIsLoading(true);
         try {
             const queryArgs = {
@@ -110,25 +140,11 @@ const ReverseWithdrawalPage = () => {
                 ...filterArgs,
             };
 
-            // Add date range parameters in the format expected by the API
-            if (dateAfter || dateBefore) {
+            if (afterParam || beforeParam) {
                 queryArgs['trn_date'] = {};
-                
-                if (dateAfter) {
-                    // Format: YYYY-MM-DD HH:mm:ss (add time component)
-                    
-                    queryArgs['trn_date']['from'] = moment(dateAfter).format('YYYY-MM-DD 00:00:00');
-                    console.log('Date from:', queryArgs['trn_date']['from']); // Debug log
-                }
-                
-                if (dateBefore) {
-                    // Format: YYYY-MM-DD HH:mm:ss (add time component for end of day)
-                    queryArgs['trn_date']['to'] = moment(dateBefore).format('YYYY-MM-DD 23:59:59');
-                    console.log('Date to:', queryArgs['trn_date']['to']); // Debug log
-                }
+                if (afterParam) queryArgs['trn_date']['from'] = moment(afterParam).format('YYYY-MM-DD 00:00:00');
+                if (beforeParam) queryArgs['trn_date']['to'] = moment(beforeParam).format('YYYY-MM-DD 23:59:59');
             }
-
-            console.log('API Query Args:', queryArgs); // Debug log
 
             const response = await apiFetch({
                 path: addQueryArgs('dokan/v1/reverse-withdrawal/stores-balance', queryArgs),
@@ -143,13 +159,9 @@ const ReverseWithdrawalPage = () => {
             });
 
             const storeData = await response.json();
-            console.log('Fetched data:', storeData); // Debug log
             setData(storeData);
-
-            const total = parseInt(response.headers.get('X-WP-Total') || 0);
-            setTotalItems(total);
-        } catch (error) {
-            console.error('Error fetching reverse withdrawal data:', error);
+            setTotalItems(parseInt(response.headers.get('X-WP-Total') || 0));
+        } catch {
             setData([]);
         } finally {
             setIsLoading(false);
@@ -160,103 +172,37 @@ const ReverseWithdrawalPage = () => {
         fetchData();
     }, [fetchData]);
 
-    // Watch for date changes and trigger fetch (like Vue version)
-    // useEffect(() => {
-    //     if (dateAfter || dateBefore) {
-    //         const timer = setTimeout(() => {
-    //             fetchData();
-    //         }, 300); // Small debounce like the Vue version
-            
-    //         return () => clearTimeout(timer);
-    //     }
-    // }, [dateAfter, dateBefore, fetchData]);
-
-    // Handle modal save
-    const handleModalSave = async (formData) => {
+    const handleModalSave = useCallback(async (formData) => {
         try {
-            // Make API call to save the reverse withdrawal
-            await apiFetch({
-                path: 'dokan/v1/reverse-withdrawal',
-                method: 'POST',
-                data: formData,
-            });
-            
-            // Close modal and refresh data
+            await apiFetch({ path: 'dokan/v1/reverse-withdrawal', method: 'POST', data: formData });
             setShowAddModal(false);
-            fetchData(); // Refresh the list after adding new entry
-            
-            // You might want to show a success message here
-            console.log('Reverse withdrawal added successfully');
-        } catch (error) {
-            console.error('Error adding reverse withdrawal:', error);
-            // You might want to show an error message here
+            fetchData();
+        } catch {}
+    }, [fetchData]);
+
+    // Memoize setFilterArgs to prevent unnecessary re-renders of StoreFilter
+    const memoizedSetFilterArgs = useCallback((newArgs) => {
+        if (typeof newArgs === 'function') {
+            setFilterArgs(newArgs);
+        } else {
+            setFilterArgs(newArgs);
         }
-    };
+    }, []);
 
-    const StoreFilter = ({ filterArgs, setFilterArgs, errors = {} }) => {
-        const handleVendorChange = (selected) => {
-            setFilterArgs({
-                ...filterArgs,
-                vendor_id: selected ? selected.value : '', // store vendor_id instead of generic store
-            });
-        };
+    // Move DateFilter outside or memoize it
+    const DateFilter = useCallback(() => {
+        const [tempAfter, setTempAfter] = useState(dateAfter);
+        const [tempAfterText, setTempAfterText] = useState(dateAfterText);
+        const [tempBefore, setTempBefore] = useState(dateBefore);
+        const [tempBeforeText, setTempBeforeText] = useState(dateBeforeText);
+        const [tempFocused, setTempFocused] = useState(focusedInput);
 
-        return (
-            <div className="flex flex-col min-w-48">
-                <div className="relative">
-                    <House className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
-
-                    <VendorAsyncSelect
-                        prefetch
-                        isClearable
-                        onChange={handleVendorChange}
-                        placeholder={__('All Store', 'dokan-lite')}
-                        menuPortalTarget={document.body}
-                        styles={{
-                            control: (provided) => ({
-                                ...provided,
-                                paddingLeft: '1.5rem',
-                            }),
-                            menuPortal: (base) => ({
-                                ...base,
-                                zIndex: 9999,
-                            }),
-                        }}
-                    />
-                </div>
-
-                {errors.vendorId && (
-                    <span className="text-red-500 text-sm">
-                        {__('Please select a vendor', 'dokan-lite')}
-                    </span>
-                )}
-            </div>
-        );
-    };
-
-    // Updated DateFilter component using DateRangePicker
-    const DateFilter = () => {
         const handleDateRangeUpdate = (update) => {
-            if (update.after !== undefined) {
-                setDateAfter(update.after);
-            }
-            if (update.afterText !== undefined) {
-                setDateAfterText(update.afterText);
-            }
-            if (update.before !== undefined) {
-                setDateBefore(update.before);
-            }
-            if (update.beforeText !== undefined) {
-                setDateBeforeText(update.beforeText);
-            }
-            if (update.focusedInput !== undefined) {
-                setFocusedInput(update.focusedInput);
-                
-                if (update.focusedInput === 'endDate' && dateAfter) {
-                    setDateBefore('');
-                    setDateBeforeText('');
-                }
-            }
+            if (update.after !== undefined) setTempAfter(update.after);
+            if (update.afterText !== undefined) setTempAfterText(update.afterText);
+            if (update.before !== undefined) setTempBefore(update.before);
+            if (update.beforeText !== undefined) setTempBeforeText(update.beforeText);
+            if (update.focusedInput !== undefined) setTempFocused(update.focusedInput);
         };
 
         const handleClearDateRange = () => {
@@ -265,28 +211,40 @@ const ReverseWithdrawalPage = () => {
             setDateBefore('');
             setDateBeforeText('');
             setFocusedInput('startDate');
+
+            setTempAfter('');
+            setTempAfterText('');
+            setTempBefore('');
+            setTempBeforeText('');
+            setTempFocused('startDate');
+        };
+
+        const handleOk = () => {
+            setDateAfter(tempAfter);
+            setDateAfterText(tempAfterText);
+            setDateBefore(tempBefore);
+            setDateBeforeText(tempBeforeText);
+            setFocusedInput(tempFocused);
+            fetchData(tempAfter, tempBefore);
         };
 
         return (
             <div className="flex flex-col min-w-48 relative">
                 <DateRangePicker
-                    after={dateAfter}
-                    afterText={dateAfterText}
-                    before={dateBefore}
-                    beforeText={dateBeforeText}
+                    after={tempAfter}
+                    afterText={tempAfterText}
+                    before={tempBefore}
+                    beforeText={tempBeforeText}
                     onUpdate={handleDateRangeUpdate}
                     shortDateFormat="MM/DD/YYYY"
-                    focusedInput={focusedInput}
+                    focusedInput={tempFocused}
                     isInvalidDate={() => false}
                     wrapperClassName="w-full"
                     pickerToggleClassName="block"
                     wpPopoverClassName="dokan-layout"
                     popoverBodyClassName="p-4 w-auto text-sm/6"
                     onClear={handleClearDateRange}
-                    onOk={() => {
-                        // Optional: Handle apply action if needed
-                        fetchData();
-                    }}
+                    onOk={handleOk}
                 >
                     <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
@@ -294,12 +252,8 @@ const ReverseWithdrawalPage = () => {
                             type="text"
                             value={(() => {
                                 const parts = [];
-                                if (dateAfterText || dateAfter) {
-                                    parts.push(dateAfterText || dateAfter);
-                                }
-                                if (dateBeforeText || dateBefore) {
-                                    parts.push(dateBeforeText || dateBefore);
-                                }
+                                if (tempAfterText || tempAfter) parts.push(tempAfterText || tempAfter);
+                                if (tempBeforeText || tempBefore) parts.push(tempBeforeText || tempBefore);
                                 return parts.join(' - ');
                             })()}
                             className="border border-gray-300 rounded-md px-3 py-2 pl-9 text-gray-900 cursor-pointer w-full"
@@ -310,56 +264,44 @@ const ReverseWithdrawalPage = () => {
                 </DateRangePicker>
             </div>
         );
-    };
+    }, [dateAfter, dateAfterText, dateBefore, dateBeforeText, focusedInput, fetchData]);
+
+    // Memoize filter fields to prevent recreation
+    const filterFields = useMemo(() => [
+        <StoreFilter key="store_filter" filterArgs={filterArgs} setFilterArgs={memoizedSetFilterArgs} />,
+        <DateFilter key="date_filter" />,
+    ], [filterArgs, memoizedSetFilterArgs, DateFilter]);
 
     return (
         <div className="p-6 bg-gray rounded-md shadow-sm">
-            {/* Header */}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">
-                    {__('Reverse Withdrawal', 'dokan-lite')}
-                </h1>
-                <DokanButton 
-                    variant="primary" 
-                    onClick={() => setShowAddModal(true)}
-                >
+                <h1 className="text-2xl font-bold text-gray-900">{__('Reverse Withdrawal', 'dokan-lite')}</h1>
+                <DokanButton variant="primary" onClick={() => setShowAddModal(true)}>
                     + {__('Add New', 'dokan-lite')}
                 </DokanButton>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white p-4 rounded-md shadow border border-gray-200">
-                    <p className="text-sm text-purple-600 font-medium mb-1">
-                        {__('Total Collected', 'dokan-lite')}
-                    </p>
+                    <p className="text-sm text-purple-600 font-medium mb-1">{__('Total Collected', 'dokan-lite')}</p>
                     <p className="text-2xl font-bold text-gray-900">{price(stats.credit)}</p>
                 </div>
                 <div className="bg-white p-4 rounded-md shadow border border-gray-200">
-                    <p className="text-sm text-purple-600 font-medium mb-1">
-                        {__('Remaining Balance', 'dokan-lite')}
-                    </p>
+                    <p className="text-sm text-purple-600 font-medium mb-1">{__('Remaining Balance', 'dokan-lite')}</p>
                     <p className="text-2xl font-bold text-gray-900">{price(stats.balance)}</p>
                 </div>
                 <div className="bg-white p-4 rounded-md shadow border border-gray-200">
-                    <p className="text-sm text-purple-600 font-medium mb-1">
-                        {__('Total Transactions', 'dokan-lite')}
-                    </p>
+                    <p className="text-sm text-purple-600 font-medium mb-1">{__('Total Transactions', 'dokan-lite')}</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.total_transactions}</p>
                 </div>
                 <div className="bg-white p-4 rounded-md shadow border border-gray-200">
-                    <p className="text-sm text-purple-600 font-medium mb-1">
-                        {__('Total Vendors', 'dokan-lite')}
-                    </p>
+                    <p className="text-sm text-purple-600 font-medium mb-1">{__('Total Vendors', 'dokan-lite')}</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.total_vendors}</p>
                 </div>
             </div>
 
-            {/* Section Header with Filter button */}
             <div className="flex justify-between items-center p-4 border-b border-gray-200 mb-4">
-                <h2 className="text-lg font-medium text-gray-900">
-                    {__('List of Data', 'dokan-lite')}
-                </h2>
+                <h2 className="text-lg font-medium text-gray-900">{__('List of Data', 'dokan-lite')}</h2>
                 <button
                     type="button"
                     className={twMerge(
@@ -373,25 +315,16 @@ const ReverseWithdrawalPage = () => {
                 </button>
             </div>
 
-            {/* Filter panel */}
             <div className={showFilters ? 'mb-6' : 'hidden'}>
                 <Filter
-                    fields={[
-                        <StoreFilter
-                            key="store_filter"
-                            filterArgs={filterArgs}
-                            setFilterArgs={setFilterArgs}
-                        />,
-                        <DateFilter key="date_filter" />,
-                    ]}
+                    fields={filterFields}
                     onFilter={fetchData}
-                    showFilter={false}   // ⬅️ hide Filter button
-                    showReset={false}    // ⬅️ hide Reset button
+                    showFilter={false}
+                    showReset={false}
                     namespace="reverse_withdrawal_filters"
                 />
             </div>
 
-            {/* DataView with pagination footer */}
             <DataViews
                 data={data}
                 namespace="reverse-withdrawal-data-view"
@@ -399,21 +332,13 @@ const ReverseWithdrawalPage = () => {
                 fields={fields}
                 getItemId={(item) => item.vendor_id}
                 onChangeView={setView}
-                paginationInfo={{
-                    totalItems,
-                    totalPages: Math.ceil(totalItems / view.perPage),
-                }}
+                paginationInfo={{ totalItems, totalPages: Math.ceil(totalItems / view.perPage) }}
                 view={view}
                 isLoading={isLoading}
             />
 
-            {/* Add Reverse Withdrawal Modal */}
             {showAddModal && (
-                <AddReverseWithdrawModal
-                    open={showAddModal}
-                    onClose={() => setShowAddModal(false)}
-                    onSave={handleModalSave}
-                />
+                <AddReverseWithdrawModal open={showAddModal} onClose={() => setShowAddModal(false)} onSave={handleModalSave} />
             )}
         </div>
     );

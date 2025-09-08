@@ -164,10 +164,7 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
                         onChange={setSelectedProduct}
                         placeholder={__('Search', 'dokan-lite')}
                         isClearable
-                        defaultOptions={false}
                         prefetch
-                        endpoint='dokan/v1/products'
-                        isDisabled={!vendorsData}
                         extraQuery={{
                             ...(vendorsData?.value ? { id: vendorsData.value } : {}),
                             post_status: 'publish',
@@ -194,7 +191,6 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
                         isClearable
                         prefetch
                         endpoint='dokan/v1/orders'
-                        defaultOptions={false}
                         isDisabled={!vendorsData}
                         extraQuery={{
                             ...(vendorsData?.value && { seller_id: vendorsData.value }),

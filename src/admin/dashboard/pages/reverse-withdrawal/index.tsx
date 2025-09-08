@@ -14,8 +14,11 @@ import { Funnel } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 // Import the modal component
 import AddReverseWithdrawModal from './AddReverseWithdrawModal';
-import { House } from 'lucide-react';
+import { House, Calendar } from 'lucide-react';
 import { VendorAsyncSelect } from '@src/components';
+// Import DateRangePicker
+import DateRangePicker from '@src/components/DateRangePicker';
+import moment from 'moment';
 
 const price = (amount) => <RawHTML>{formatPrice(amount)}</RawHTML>;
 
@@ -34,6 +37,13 @@ const ReverseWithdrawalPage = () => {
     const [showFilters, setShowFilters] = useState(false);
     // Add state for modal
     const [showAddModal, setShowAddModal] = useState(false);
+
+    // Date range picker state
+    const [dateAfter, setDateAfter] = useState('');
+    const [dateAfterText, setDateAfterText] = useState('');
+    const [dateBefore, setDateBefore] = useState('');
+    const [dateBeforeText, setDateBeforeText] = useState('');
+    const [focusedInput, setFocusedInput] = useState('startDate');
 
     const [view, setView] = useState({
         perPage: 10,
@@ -100,6 +110,26 @@ const ReverseWithdrawalPage = () => {
                 ...filterArgs,
             };
 
+            // Add date range parameters in the format expected by the API
+            if (dateAfter || dateBefore) {
+                queryArgs['trn_date'] = {};
+                
+                if (dateAfter) {
+                    // Format: YYYY-MM-DD HH:mm:ss (add time component)
+                    
+                    queryArgs['trn_date']['from'] = moment(dateAfter).format('YYYY-MM-DD 00:00:00');
+                    console.log('Date from:', queryArgs['trn_date']['from']); // Debug log
+                }
+                
+                if (dateBefore) {
+                    // Format: YYYY-MM-DD HH:mm:ss (add time component for end of day)
+                    queryArgs['trn_date']['to'] = moment(dateBefore).format('YYYY-MM-DD 23:59:59');
+                    console.log('Date to:', queryArgs['trn_date']['to']); // Debug log
+                }
+            }
+
+            console.log('API Query Args:', queryArgs); // Debug log
+
             const response = await apiFetch({
                 path: addQueryArgs('dokan/v1/reverse-withdrawal/stores-balance', queryArgs),
                 parse: false,
@@ -113,6 +143,7 @@ const ReverseWithdrawalPage = () => {
             });
 
             const storeData = await response.json();
+            console.log('Fetched data:', storeData); // Debug log
             setData(storeData);
 
             const total = parseInt(response.headers.get('X-WP-Total') || 0);
@@ -123,11 +154,22 @@ const ReverseWithdrawalPage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [view, filterArgs]);
+    }, [view, filterArgs, dateAfter, dateBefore]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Watch for date changes and trigger fetch (like Vue version)
+    // useEffect(() => {
+    //     if (dateAfter || dateBefore) {
+    //         const timer = setTimeout(() => {
+    //             fetchData();
+    //         }, 300); // Small debounce like the Vue version
+            
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [dateAfter, dateBefore, fetchData]);
 
     // Handle modal save
     const handleModalSave = async (formData) => {
@@ -161,10 +203,6 @@ const ReverseWithdrawalPage = () => {
 
         return (
             <div className="flex flex-col min-w-48">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {__('Store', 'dokan-lite')}
-                </label>
-
                 <div className="relative">
                     <House className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
 
@@ -195,21 +233,84 @@ const ReverseWithdrawalPage = () => {
             </div>
         );
     };
-    const DateFilter = ({ filterArgs, setFilterArgs }) => (
-        <div className="flex flex-col min-w-48">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {__('Date', 'dokan-lite')}
-            </label>
-            <input
-                type="date"
-                value={filterArgs.date || ''}
-                onChange={(e) =>
-                    setFilterArgs({ ...filterArgs, date: e.target.value })
+
+    // Updated DateFilter component using DateRangePicker
+    const DateFilter = () => {
+        const handleDateRangeUpdate = (update) => {
+            if (update.after !== undefined) {
+                setDateAfter(update.after);
+            }
+            if (update.afterText !== undefined) {
+                setDateAfterText(update.afterText);
+            }
+            if (update.before !== undefined) {
+                setDateBefore(update.before);
+            }
+            if (update.beforeText !== undefined) {
+                setDateBeforeText(update.beforeText);
+            }
+            if (update.focusedInput !== undefined) {
+                setFocusedInput(update.focusedInput);
+                
+                if (update.focusedInput === 'endDate' && dateAfter) {
+                    setDateBefore('');
+                    setDateBeforeText('');
                 }
-                className="border border-gray-300 rounded-md px-3 py-2"
-            />
-        </div>
-    );
+            }
+        };
+
+        const handleClearDateRange = () => {
+            setDateAfter('');
+            setDateAfterText('');
+            setDateBefore('');
+            setDateBeforeText('');
+            setFocusedInput('startDate');
+        };
+
+        return (
+            <div className="flex flex-col min-w-48 relative">
+                <DateRangePicker
+                    after={dateAfter}
+                    afterText={dateAfterText}
+                    before={dateBefore}
+                    beforeText={dateBeforeText}
+                    onUpdate={handleDateRangeUpdate}
+                    shortDateFormat="MM/DD/YYYY"
+                    focusedInput={focusedInput}
+                    isInvalidDate={() => false}
+                    wrapperClassName="w-full"
+                    pickerToggleClassName="block"
+                    wpPopoverClassName="dokan-layout"
+                    popoverBodyClassName="p-4 w-auto text-sm/6"
+                    onClear={handleClearDateRange}
+                    onOk={() => {
+                        // Optional: Handle apply action if needed
+                        fetchData();
+                    }}
+                >
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none z-10" />
+                        <input
+                            type="text"
+                            value={(() => {
+                                const parts = [];
+                                if (dateAfterText || dateAfter) {
+                                    parts.push(dateAfterText || dateAfter);
+                                }
+                                if (dateBeforeText || dateBefore) {
+                                    parts.push(dateBeforeText || dateBefore);
+                                }
+                                return parts.join(' - ');
+                            })()}
+                            className="border border-gray-300 rounded-md px-3 py-2 pl-9 text-gray-900 cursor-pointer w-full"
+                            placeholder={__('Select date range', 'dokan-lite')}
+                            readOnly
+                        />
+                    </div>
+                </DateRangePicker>
+            </div>
+        );
+    };
 
     return (
         <div className="p-6 bg-gray rounded-md shadow-sm">
@@ -281,11 +382,7 @@ const ReverseWithdrawalPage = () => {
                             filterArgs={filterArgs}
                             setFilterArgs={setFilterArgs}
                         />,
-                        <DateFilter
-                            key="date_filter"
-                            filterArgs={filterArgs}
-                            setFilterArgs={setFilterArgs}
-                        />,
+                        <DateFilter key="date_filter" />,
                     ]}
                     onFilter={fetchData}
                     showFilter={false}   // ⬅️ hide Filter button

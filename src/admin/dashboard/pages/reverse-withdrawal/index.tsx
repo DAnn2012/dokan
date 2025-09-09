@@ -136,7 +136,6 @@ const ReverseWithdrawalPage = () => {
             const queryArgs = {
                 per_page: view.perPage,
                 page: view.page,
-                search: view.search || '',
                 ...filterArgs,
             };
 
@@ -166,7 +165,7 @@ const ReverseWithdrawalPage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [view, filterArgs, dateAfter, dateBefore]);
+    }, [view.page, view.perPage, filterArgs]);
 
     useEffect(() => {
         fetchData();
@@ -211,7 +210,6 @@ const ReverseWithdrawalPage = () => {
             setDateBefore('');
             setDateBeforeText('');
             setFocusedInput('startDate');
-
             setTempAfter('');
             setTempAfterText('');
             setTempBefore('');
@@ -225,7 +223,9 @@ const ReverseWithdrawalPage = () => {
             setDateBefore(tempBefore);
             setDateBeforeText(tempBeforeText);
             setFocusedInput(tempFocused);
-            fetchData(tempAfter, tempBefore);
+            if(tempAfter && tempBefore) {
+                fetchData(tempAfter, tempBefore);
+            }
         };
 
         return (
@@ -256,8 +256,8 @@ const ReverseWithdrawalPage = () => {
                                 if (tempBeforeText || tempBefore) parts.push(tempBeforeText || tempBefore);
                                 return parts.join(' - ');
                             })()}
-                            className="border border-gray-300 rounded-md px-3 py-2 pl-9 text-gray-900 cursor-pointer w-full"
-                            placeholder={__('Select date range', 'dokan-lite')}
+                            className="border border-gray-300 rounded-md pl-8 text-gray-900 cursor-pointer w-full bg-gray-50 h-11"
+                            placeholder={__('Date', 'dokan-lite')}
                             readOnly
                         />
                     </div>
@@ -300,7 +300,7 @@ const ReverseWithdrawalPage = () => {
                 </div>
             </div>
 
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 mb-4">
+            <div className="flex justify-between items-center py-4 border-b border-gray-200 mb-4">
                 <h2 className="text-lg font-medium text-gray-900">{__('List of Data', 'dokan-lite')}</h2>
                 <button
                     type="button"

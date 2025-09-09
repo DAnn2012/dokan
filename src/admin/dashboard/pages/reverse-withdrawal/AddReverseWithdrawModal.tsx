@@ -280,7 +280,7 @@ const AddReverseWithdrawModal = ({ open, onClose }) => {
             onClose={handleClose}
             onConfirm={handleConfirm}
             namespace="add-reverse-withdrawal"
-            className="dokan-layout max-w-[620px] w-full max-h-[818px]" // Forced resize with !important
+            className="w-[620px] h-auto max-h-[818px]" // Forced resize with !important
             dialogTitle={__('Add New Reverse Withdrawal', 'dokan-lite')}
             dialogContent={modalContent}
             confirmButtonText={__('Add New', 'dokan-lite')}

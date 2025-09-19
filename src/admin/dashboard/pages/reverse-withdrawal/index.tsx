@@ -257,7 +257,7 @@ const ReverseWithdrawalPage = () => {
                                 if (tempBeforeText || tempBefore) parts.push(tempBeforeText || tempBefore);
                                 return parts.join(' - ');
                             })()}
-                            className="border border-gray-300 rounded-md pl-8 text-gray-900 cursor-pointer w-full bg-gray-50 h-11"
+                            className="border border-gray-300 rounded-md pl-8 text-gray-900 cursor-pointer w-full bg-[#fdfdfd] h-11"
                             placeholder={__('Date', 'dokan-lite')}
                             readOnly
                         />

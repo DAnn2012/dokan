@@ -215,6 +215,7 @@ const ReverseWithdrawalPage = () => {
             setTempBefore('');
             setTempBeforeText('');
             setTempFocused('startDate');
+            fetchData('', '');
         };
 
         const handleOk = () => {
